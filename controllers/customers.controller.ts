@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import pool from "../src/db";
 const router = express.Router();
 
+import { RowDataPacket } from 'mysql2';
+
 {
     /* 
     CREATE TABLE customers (
@@ -25,14 +27,20 @@ router.get("/", async (req: Request, res: Response) => {
     }
 });
 
-//get by id
+// Get by ID
 router.get("/:id", async (req: Request, res: Response) => {
     const id = req.params.id;
     try {
-        const [rows] = await pool.query(
-            `SELECT * FROM customers WHERE id = ${id}`
+        const [rows] = await pool.query<RowDataPacket[]>( 
+            `SELECT * FROM customers WHERE id = ?`,
+            [id]
         );
-        res.json(rows);
+
+        if (rows.length > 0) {
+            res.json(rows[0]);
+        } else {
+            res.status(404).send("Customer not found");
+        }
     } catch (err) {
         console.log(err);
         res.status(500).send("Server Error");

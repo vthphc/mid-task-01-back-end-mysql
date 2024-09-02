@@ -3,7 +3,6 @@ import pool from "../src/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { RowDataPacket } from "mysql2";
-import { console } from "inspector";
 
 interface CustomRequest extends Request {
     user?: any;
