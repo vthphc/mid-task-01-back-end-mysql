@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import pool from "../src/db";
 const router = express.Router();
 
-import { RowDataPacket } from 'mysql2';
+import { RowDataPacket } from "mysql2";
 
 {
     /* 
@@ -15,6 +15,12 @@ import { RowDataPacket } from 'mysql2';
     dateOfBirth DATE
 );
     */
+}
+
+interface CustomRequest extends Request {
+    user?: any;
+    email?: any;
+    phoneNumber?: any;
 }
 
 router.get("/", async (req: Request, res: Response) => {
@@ -31,7 +37,7 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/:id", async (req: Request, res: Response) => {
     const id = req.params.id;
     try {
-        const [rows] = await pool.query<RowDataPacket[]>( 
+        const [rows] = await pool.query<RowDataPacket[]>(
             `SELECT * FROM customers WHERE id = ?`,
             [id]
         );
@@ -50,6 +56,30 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.post("/", async (req: Request, res: Response) => {
     const { fullName, phoneNumber, email, gender, dateOfBirth } = req.body;
     try {
+        const [emailExists] = await pool.query<RowDataPacket[]>(
+            `SELECT * FROM customers WHERE email = ?`,
+            [email]
+        );
+
+        if (emailExists.length > 0) {
+            return res.status(410).json({
+                message: "Email already exists",
+                duplicateField: "email",
+            });
+        }
+
+        const [phoneExists] = await pool.query<RowDataPacket[]>(
+            `SELECT * FROM customers WHERE phoneNumber = ?`,
+            [phoneNumber]
+        );
+
+        if (phoneExists.length > 0) {
+            return res.status(411).json({
+                message: "Phone Number already exists",
+                duplicateField: "phoneNumber",
+            });
+        }
+
         await pool.query(
             `INSERT INTO customers (fullName, phoneNumber, email, gender, dateOfBirth) VALUES ('${fullName}', '${phoneNumber}', '${email}', '${gender}', '${dateOfBirth}')`,
             [fullName, phoneNumber, email, gender, dateOfBirth]
@@ -65,6 +95,30 @@ router.put("/:id", async (req: Request, res: Response) => {
     const id = req.params.id;
     const { fullName, phoneNumber, email, gender, dateOfBirth } = req.body;
     try {
+        const [emailExists] = await pool.query<RowDataPacket[]>(
+            `SELECT * FROM customers WHERE email = ? AND id != ?`,
+            [email, id]
+        );
+
+        if (emailExists.length > 0) {
+            return res.status(410).json({
+                message: "Email already exists",
+                duplicateField: "email",
+            });
+        }
+
+        const [phoneExists] = await pool.query<RowDataPacket[]>(
+            `SELECT * FROM customers WHERE phoneNumber = ? AND id != ?`,
+            [phoneNumber, id]
+        );
+
+        if (phoneExists.length > 0) {
+            return res.status(411).json({
+                message: "Phone Number already exists",
+                duplicateField: "phoneNumber",
+            });
+        }
+
         await pool.query(
             `UPDATE customers SET fullName = '${fullName}', phoneNumber = '${phoneNumber}', email = '${email}',
             gender = '${gender}', dateOfBirth = '${dateOfBirth}' WHERE id = ${id}`,

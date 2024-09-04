@@ -46,6 +46,16 @@ const verifyToken = (req: CustomRequest, res: Response, next: NextFunction) => {
 router.post("/signup", async (req: Request, res: Response) => {
     const { username, password, role } = req.body;
 
+    //check if username already exists
+    const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT * FROM users WHERE username = ?`,
+        [username]
+    );
+
+    if (rows.length > 0) {
+        return res.status(401).json({ message: "Username already exists" });
+    }
+
     try {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -69,7 +79,7 @@ router.post("/login", async (req: Request, res: Response) => {
         const [rows] = await pool.query<RowDataPacket[]>(
             `SELECT * FROM users WHERE username = ?`,
             [username]
-        );        
+        );
 
         if (rows.length === 0) {
             return res.status(400).json({ message: "Invalid Username" });
@@ -84,9 +94,9 @@ router.post("/login", async (req: Request, res: Response) => {
         }
 
         const accessToken = jwt.sign({ id: user.id }, JWT_SECRET as string, {
-            expiresIn: "24m",
+            expiresIn: "24h",
         });
-        
+
         res.json({ accessToken });
     } catch (err) {
         console.log(err);
@@ -94,18 +104,58 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 });
 
-router.get("/profile", verifyToken, async (req: CustomRequest, res: Response) => {
-    try {
-        const [rows] = await pool.query<RowDataPacket[]>(
-            `SELECT * FROM users WHERE id = ?`,
-            [req.user.id]
-        );
+router.get(
+    "/profile",
+    verifyToken,
+    async (req: CustomRequest, res: Response) => {
+        try {
+            const [rows] = await pool.query<RowDataPacket[]>(
+                `SELECT * FROM users WHERE id = ?`,
+                [req.user.id]
+            );
 
-        res.json(rows[0]);
-    } catch (err) {
-        console.log(err);
-        res.status(500).send("Server Error");
+            res.json(rows[0]);
+        } catch (err) {
+            console.log(err);
+            res.status(500).send("Server Error");
+        }
     }
-});
+);
+
+router.put(
+    "/change-password",
+    verifyToken,
+    async (req: CustomRequest, res: Response) => {
+        const { oldPassword, newPassword } = req.body;
+
+        try {
+            const [rows] = await pool.query<RowDataPacket[]>(
+                `SELECT * FROM users WHERE id = ?`,
+                [req.user.id]
+            );
+
+            const user = rows[0];
+
+            const validPass = await bcrypt.compare(oldPassword, user.password);
+
+            if (!validPass) {
+                return res.status(400).json({ message: "Invalid Password" });
+            }
+
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+            await pool.query(`UPDATE users SET password = ? WHERE id = ?`, [
+                hashedPassword,
+                req.user.id,
+            ]);
+
+            res.json("Password changed successfully");
+        } catch (err) {
+            console.log(err);
+            res.status(500).send("Server Error");
+        }
+    }
+);
 
 module.exports = router;
