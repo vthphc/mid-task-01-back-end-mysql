@@ -4,11 +4,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { RowDataPacket } from "mysql2";
 
+const router = express.Router();
+
 interface CustomRequest extends Request {
     user?: any;
 }
-
-const router = express.Router();
 
 {
     /* 
@@ -87,6 +87,10 @@ router.post("/login", async (req: Request, res: Response) => {
 
         const user = rows[0];
 
+        if (user.isBanned) {
+            return res.status(403).json({ message: "User is banned" });
+        }
+
         const validPass = await bcrypt.compare(password, user.password);
 
         if (!validPass) {
@@ -104,10 +108,7 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 });
 
-router.get(
-    "/profile",
-    verifyToken,
-    async (req: CustomRequest, res: Response) => {
+router.get("/profile", verifyToken, async (req: CustomRequest, res: Response) => {
         try {
             const [rows] = await pool.query<RowDataPacket[]>(
                 `SELECT * FROM users WHERE id = ?`,
@@ -122,10 +123,7 @@ router.get(
     }
 );
 
-router.put(
-    "/change-password",
-    verifyToken,
-    async (req: CustomRequest, res: Response) => {
+router.put("/change-password", verifyToken, async (req: CustomRequest, res: Response) => {
         const { oldPassword, newPassword } = req.body;
 
         try {

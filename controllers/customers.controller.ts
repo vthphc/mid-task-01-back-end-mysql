@@ -53,6 +53,26 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
 });
 
+//add a global search (1 query can search for all fields)
+router.get("/search/:keyword", async (req: Request, res: Response) => {
+    const keyword = req.params.keyword;
+    const searchKeyword = `%${keyword}%`;
+
+    try {
+        const [rows] = await pool.query<RowDataPacket[]>(
+            `SELECT * FROM customers 
+            WHERE fullName LIKE ? 
+            OR phoneNumber LIKE ? 
+            OR email LIKE ?`,
+            [searchKeyword, searchKeyword, searchKeyword]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Server Error");
+    }
+});
+
 router.post("/", async (req: Request, res: Response) => {
     const { fullName, phoneNumber, email, gender, dateOfBirth } = req.body;
     try {
