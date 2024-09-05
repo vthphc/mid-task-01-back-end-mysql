@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import pool from "../src/db";
 import jwt from "jsonwebtoken";
+import { RowDataPacket } from "mysql2";
+
 
 const router = express.Router();
 
@@ -65,19 +67,19 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 router.put("/ban/:id", verifyToken, async (req: CustomRequest, res: Response) => {
-    if (req.user.id === req.params.id) {
-        return res.status(403).json({ message: "You can not ban yourself" });
-    } else {
-        try {
-            const [rows] = await pool.query(
-                "UPDATE users SET isBanned = true WHERE id = ?",
-                [req.params.id]
-            );
-            res.json(rows);
-        } catch (err) {
-            console.log(err);
-            res.status(500).send("Server Error");
-        }
+    if (req.user.id == req.params.id) {
+        return res.status(421).json({ message: "You can not ban yourself" });
+    }
+
+    try {
+        const [rows] = await pool.query(
+            "UPDATE users SET isBanned = true WHERE id = ?",
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Server Error");
     }
 });
 
